@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: v8-grand-prix
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz

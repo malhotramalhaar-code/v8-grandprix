@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V8 Grand Prix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js" } }
+</script>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="ui">
+
+  <!-- ============ MAIN MENU ============ -->
+  <section id="menu" class="screen active">
+    <header class="brand">
+      <div class="logo">V8<span>GRAND PRIX</span></div>
+      <div class="tag">18,000 RPM &nbsp;·&nbsp; ANY TRACK &nbsp;·&nbsp; RACE YOUR FRIENDS</div>
+    </header>
+    <div class="menu-grid">
+      <div class="panel">
+        <h2>Driver</h2>
+        <label>Name<input id="in-name" maxlength="16" autocomplete="off"></label>
+        <label>Car number<input id="in-num" type="number" min="1" max="99"></label>
+        <label>Livery</label>
+        <div id="swatches" class="swatches"></div>
+      </div>
+      <div class="panel actions">
+        <button id="btn-solo" class="btn primary xl">Race vs AI<small>offline, any track</small></button>
+        <button id="btn-create" class="btn xl">Host a race<small>get a room code to share</small></button>
+        <div class="joinrow"><input id="in-code" placeholder="ROOM CODE" maxlength="4" autocomplete="off" spellcheck="false"><button id="btn-join" class="btn">Join</button></div>
+        <div class="row3">
+          <button id="btn-quick" class="btn">Quick join</button>
+          <button id="btn-editor" class="btn">Track editor</button>
+          <button id="btn-help" class="btn ghost">Controls</button>
+        </div>
+        <div id="menu-msg" class="msg"></div>
+      </div>
+      <div class="panel">
+        <h2>Open rooms <button id="btn-refresh" class="btn small ghost" title="Refresh">↻</button></h2>
+        <div id="room-list" class="roomlist"><p class="muted">Looking for rooms…</p></div>
+        <div id="net-status" class="muted small"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ LOBBY ============ -->
+  <section id="lobby" class="screen">
+    <div class="lobby-top">
+      <button id="btn-leave" class="btn ghost">← Leave</button>
+      <div class="roomcode"><span>ROOM</span><b id="lb-code">----</b><button id="btn-copy" class="btn small">Copy invite link</button></div>
+      <div class="muted" id="lb-state"></div>
+    </div>
+    <div class="lobby-grid">
+      <div class="panel">
+        <h2>Drivers <span id="lb-count" class="muted"></span></h2>
+        <div id="lb-players" class="players"></div>
+        <div id="chat">
+          <div id="chat-log"></div>
+          <form id="chat-form"><input id="chat-in" maxlength="140" placeholder="Say something…" autocomplete="off"><button class="btn small">Send</button></form>
+        </div>
+      </div>
+
+      <div class="panel wide">
+        <h2>Circuit <span id="lb-trackname" class="muted"></span></h2>
+        <div id="track-grid" class="trackgrid"></div>
+        <div class="trackextra">
+          <div class="tx"><label>Random circuit (seed)</label><div class="inline"><input id="in-seed" placeholder="any word or number"><button id="btn-seed" class="btn small">🎲 Generate</button></div></div>
+          <div class="tx"><label>Import a friend's track code</label><div class="inline"><input id="in-import" placeholder="V8T1.…"><button id="btn-import" class="btn small">Import</button></div></div>
+        </div>
+        <div id="my-tracks" class="mytracks"></div>
+        <h2 class="mt">Race</h2>
+        <div class="settings" id="settings">
+          <label>Laps <b id="v-laps"></b><input id="s-laps" type="range" min="1" max="30"></label>
+          <label>AI drivers <b id="v-ai"></b><input id="s-ai" type="range" min="0" max="19"></label>
+          <label>AI skill <b id="v-skill"></b><input id="s-skill" type="range" min="55" max="100"></label>
+          <label>Tyre wear
+            <select id="s-wear"><option value="0">Off</option><option value="1">Normal</option><option value="2">High</option></select></label>
+          <label>Starting grid
+            <select id="s-grid"><option value="join">Join order</option><option value="random">Random</option><option value="reverse">Reversed</option></select></label>
+          <label class="check"><input type="checkbox" id="s-public"> Listed publicly</label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Garage</h2>
+        <div class="car-preview muted">Your car appears behind this panel</div>
+        <label>Tyres</label>
+        <div class="seg" id="g-comp">
+          <button data-v="soft" style="--c:#ff3b3b">Soft</button><button data-v="medium" style="--c:#ffd33b">Medium</button><button data-v="hard" style="--c:#f2f2f2">Hard</button>
+        </div>
+        <p class="hint" id="g-comp-hint"></p>
+        <label>Wings <b id="v-wing"></b><input id="g-wing" type="range" min="0" max="100"></label>
+        <p class="hint">Low = faster in a straight line, high = more grip in corners.</p>
+        <label>Brake bias <b id="v-bias"></b><input id="g-bias" type="range" min="52" max="66"></label>
+        <h2 class="mt">Driver aids</h2>
+        <label class="check"><input type="checkbox" id="a-abs"> ABS (anti-lock brakes)</label>
+        <label>Traction control <select id="a-tc"><option value="0">Off</option><option value="0.5">Medium</option><option value="1">Full</option></select></label>
+        <label>Steering stability <b id="v-steer"></b><input id="a-steer" type="range" min="0" max="100"></label>
+        <label class="check"><input type="checkbox" id="a-auto"> Automatic gearbox</label>
+        <label class="check"><input type="checkbox" id="a-line"> Show racing line</label>
+      </div>
+    </div>
+    <div class="lobby-bottom">
+      <div class="muted" id="lb-hint"></div>
+      <button id="btn-ready" class="btn xl hidden">I'm ready</button>
+      <button id="btn-start" class="btn primary xl hidden">START RACE</button>
+    </div>
+  </section>
+
+  <!-- ============ EDITOR ============ -->
+  <section id="editor" class="screen"></section>
+
+  <!-- ============ RACE HUD ============ -->
+  <section id="race" class="screen hud"></section>
+
+  <!-- ============ HELP ============ -->
+  <div id="help" class="overlay hidden">
+    <div class="box">
+      <h2>Controls</h2>
+      <table class="keys">
+        <tr><td><kbd>↑</kbd> / <kbd>W</kbd></td><td>Throttle</td></tr>
+        <tr><td><kbd>↓</kbd> / <kbd>S</kbd></td><td>Brake (hold when stopped to reverse)</td></tr>
+        <tr><td><kbd>←</kbd> <kbd>→</kbd> / <kbd>A</kbd> <kbd>D</kbd></td><td>Steer</td></tr>
+        <tr><td><kbd>E</kbd> / <kbd>Q</kbd></td><td>Shift up / down (manual gearbox)</td></tr>
+        <tr><td><kbd>G</kbd></td><td>Toggle automatic gearbox</td></tr>
+        <tr><td>hold <kbd>Space</kbd></td><td>KERS boost (+80 hp, recharges under braking)</td></tr>
+        <tr><td>hold <kbd>X</kbd></td><td>DRS: opens the rear wing on straights when within 1 s of the car ahead (from lap 2)</td></tr>
+        <tr><td><kbd>C</kbd></td><td>Change camera</td></tr>
+        <tr><td><kbd>L</kbd></td><td>Racing line overlay (green = go, yellow = lift, red = brake)</td></tr>
+        <tr><td>hold <kbd>R</kbd></td><td>Put the car back on the track</td></tr>
+        <tr><td><kbd>M</kbd></td><td>Mute sound</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Pause menu</td></tr>
+        <tr><td>Gamepad</td><td>Left stick steer · RT throttle · LT brake · RB/LB shift · A boost · X DRS · Y camera · B reset</td></tr>
+      </table>
+      <p class="muted">Tip: tuck in behind another car on a straight to get a slipstream. Brake before the corner, not in it.</p>
+      <div class="row"><button class="btn primary" id="help-close">Got it</button></div>
+    </div>
+  </div>
+
+  <div id="banner" class="banner hidden"></div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
